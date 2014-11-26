@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebGL Scene</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+        }
+        #container {
+            width: 512px;
+            height: 512px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container"></div>
+
+<script src="http://www.html5canvastutorials.com/libraries/three.min.js"></script>
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+
+    void main()
+    {
+        vUv = uv;
+
+        gl_Position =   projectionMatrix *
+                        modelViewMatrix *
+                        vec4(position,1.0);
+    }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    uniform sampler2D texture1;
+    uniform sampler2D texture2;
+
+    varying vec2 vUv;
+
+    void main()
+    {
+        if (length(texture2D(texture2, vUv) - texture2D(texture1, vUv)) > 0.0)
+            gl_FragColor = vec4(0,0,0,1);
+        else
+            gl_FragColor = vec4(1,1,1,1);
+    }
+</script>
+<script>
+    var scene;
+    var scene2;
+    var camera;
+    var camera2;
+    var renderer;
+    var renderTarget;
+    var map;
+
+    var SIZE = 512;
+
+
+
+    function init()
+    {
+        // WebGL renderer, with anti-aliasing enabled
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setSize(SIZE, SIZE);
+
+        renderTarget = new THREE.WebGLRenderTarget(SIZE, SIZE, {format: THREE.RGBFormat});
+
+        document.getElementById('container').appendChild(renderer.domElement);
+
+
+        // scene
+        scene = new THREE.Scene();
+
+
+        scene2 = new THREE.Scene();
+
+        // camera
+        camera = new THREE.PerspectiveCamera(45, SIZE / SIZE, 1, 100);
+        camera.position.set(0, 0, 10);
+        scene.add(camera);
+
+
+        camera2 = new THREE.OrthographicCamera(SIZE / - 2, SIZE / 2, SIZE / 2, SIZE / - 2, -10000, 10000);
+        camera2.position.set(0, 0, 100);
+        scene2.add( camera2 );
+
+
+
+        var shaderMaterial = new THREE.ShaderMaterial( {
+            uniforms: {
+                texture1: {type: "t", value: renderTarget},
+                texture2: {type: "t", value: THREE.ImageUtils.loadTexture('jung.png')}
+            },
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+        } );
+
+
+
+
+
+        var geometry2 = new THREE.PlaneGeometry( SIZE, SIZE);
+
+        var plane = new THREE.Mesh( geometry2, shaderMaterial );
+        plane.position.z = -100;
+        scene2.add( plane );
+
+
+
+
+        initOriginalScene();
+
+    }
+
+    function initOriginalScene()
+    {
+        var geometry = new THREE.CylinderGeometry(3, 3, 6, 32);
+        var material = new THREE.MeshPhongMaterial({ map: THREE.ImageUtils.loadTexture('textures/iso12233.jpg') });
+        var mesh = new THREE.Mesh(geometry, material);
+
+        scene.add(mesh);
+
+        // ambient lighting, color (0.1, 0.1, 0.1)
+        var ambientLight = new THREE.AmbientLight(0x191919);
+        scene.add(ambientLight);
+
+        // directional lighting, color (0.8, 0.8, 0)
+        var directionalLight = new THREE.DirectionalLight(0xCCCC00);
+        directionalLight.position.set(2, 4, 9).normalize();
+        scene.add(directionalLight);
+    }
+
+    // this function is executed on each animation frame
+    function animate()
+    {
+        renderOriginalImage();
+        requestAnimationFrame(animate);
+    }
+
+    function renderDifferenceMap()
+    {
+        renderer.clear();
+        renderer.render(scene, camera, renderTarget, true);
+        renderer.render(scene2, camera2);
+    }
+
+    /*
+     * Renders the original image, which has to be manually saved to load it later as a texture.
+     */
+    function renderOriginalImage()
+    {
+        renderer.clear();
+        renderer.render(scene, camera);
+    }
+
+    init();
+    animate();
+
+</script>
+</body>
+</html>
